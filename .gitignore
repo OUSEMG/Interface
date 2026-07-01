@@ -19,7 +19,8 @@ credentials.*
 credential.*
 secrets.*
 secret.*
-tokens.*
+tokens.json
+tokens.local.*
 token.*
 passwords.*
 password.*
@@ -37,8 +38,9 @@ master_password*
 modules/login/docs/loginSystem.md
 
 # Private/local data
-data/
+/data/
 **/data/*.json
+!**/data/*.example.json
 **/data/*.csv
 **/data/*.xlsx
 **/data/*.xls

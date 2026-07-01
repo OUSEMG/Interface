@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 import bcrypt
@@ -9,16 +10,24 @@ USERS_PATH = BACKEND_ROOT / "data" / "users.json"
 
 
 def main():
+    username = os.environ.get("OUSEMG_DEV_ADMIN_USERNAME")
+    password = os.environ.get("OUSEMG_DEV_ADMIN_PASSWORD")
+
+    if not username or not password:
+        raise RuntimeError(
+            "Set OUSEMG_DEV_ADMIN_USERNAME and OUSEMG_DEV_ADMIN_PASSWORD before seeding users."
+        )
+
     USERS_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    # DEV ONLY: Remove or rotate the master / 123 credentials before deployment.
-    hashed_password = bcrypt.hashpw("123".encode(), bcrypt.gensalt()).decode()
+    # DEV ONLY: writes a local users.json file that is intentionally ignored by git.
+    hashed_password = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
     user = {
         "id": 1,
-        "username": "master",
+        "username": username,
         "hashed_password": hashed_password,
         "role": "admin",
-        "display_name": "Master Admin",
+        "display_name": os.environ.get("OUSEMG_DEV_ADMIN_DISPLAY_NAME", "Local Admin"),
         "active": True,
     }
 
