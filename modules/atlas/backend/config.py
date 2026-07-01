@@ -1,0 +1,3 @@
+JWT_SECRET = "CHANGE_THIS_BEFORE_DEPLOYMENT"  # Rotate before any real deployment.
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRY_HOURS = 8

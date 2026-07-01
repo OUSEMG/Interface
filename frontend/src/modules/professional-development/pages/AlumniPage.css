@@ -1,0 +1,194 @@
+.al {
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--color-accent-light) 24%, transparent), transparent 280px),
+    var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.al-controls {
+  position: sticky;
+  top: var(--nav-h);
+  z-index: 110;
+  background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(12px);
+}
+
+.al-page-title {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.al-controls__inner {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-6) var(--space-2);
+}
+
+.al-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 144px;
+}
+
+.al-field--search {
+  flex: 1 1 260px;
+}
+
+.al-field__label {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.al-field__input {
+  height: 40px;
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.al-field__input:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+  outline: none;
+}
+
+.al-clear {
+  height: 40px;
+  padding: 0 var(--space-4);
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-accent);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.al-clear:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+.al-count {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--space-6) var(--space-4);
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.al-main {
+  max-width: var(--content-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-6) var(--space-16);
+}
+
+.al-empty {
+  padding: var(--space-12) var(--space-4);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.al-table-wrap {
+  overflow-x: auto;
+  background: linear-gradient(180deg, var(--color-surface), var(--color-surface-subtle));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.al-table {
+  width: 100%;
+  min-width: 960px;
+  border-collapse: collapse;
+}
+
+.al-table th,
+.al-table td {
+  padding: 14px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.al-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-surface);
+}
+
+.al-table th {
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.al-table tbody tr + tr td {
+  border-top: 1px solid var(--color-border);
+}
+
+.al-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-accent-light) 55%, transparent);
+}
+
+.al-table__name {
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.al-contact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.al-contact__link {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.al-contact__link:hover {
+  text-decoration: underline;
+}
+
+.al-contact__empty {
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 640px) {
+  .al-page-title,
+  .al-controls__inner,
+  .al-count,
+  .al-main {
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
+  }
+}

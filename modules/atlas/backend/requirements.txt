@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+yfinance
+pandas
+numpy
+scipy
+openpyxl
+pypdf
+python-jose[cryptography]
+bcrypt

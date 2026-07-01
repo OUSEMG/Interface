@@ -1,0 +1,99 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.env
+*.local
+*.secret
+*.secrets
+*.token
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.csr
+id_rsa*
+id_ed25519*
+credentials.*
+credential.*
+secrets.*
+secret.*
+tokens.*
+token.*
+passwords.*
+password.*
+passwd.*
+master-password*
+master_password*
+*master-password*
+*master_password*
+
+# Private docs and notes
+*password*.md
+*secret*.md
+*token*.md
+*credential*.md
+modules/login/docs/loginSystem.md
+
+# Private/local data
+data/
+**/data/*.json
+**/data/*.csv
+**/data/*.xlsx
+**/data/*.xls
+**/data/*.db
+**/data/*.sqlite
+**/data/*.sqlite3
+*.db
+*.sqlite
+*.sqlite3
+
+# Dependencies
+node_modules/
+**/node_modules/
+.venv/
+venv/
+**/.venv/
+**/venv/
+
+# Build output
+dist/
+**/dist/
+build/
+**/build/
+coverage/
+**/coverage/
+htmlcov/
+
+# Python caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+
+# JavaScript caches
+.vite/
+**/.vite/
+.eslintcache
+.parcel-cache/
+.turbo/
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

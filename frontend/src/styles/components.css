@@ -1,0 +1,125 @@
+.ui-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.ui-card--dark {
+  background: var(--color-dark-surface);
+  border-color: var(--color-dark-border);
+  color: var(--color-dark-text);
+  box-shadow: none;
+}
+
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border-radius: var(--radius-md);
+  padding: 10px 20px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.ui-button--primary {
+  background: var(--color-accent);
+  border: none;
+  color: var(--color-accent-text);
+}
+
+.ui-button--primary:hover {
+  background: var(--color-accent-hover);
+}
+
+.ui-button--secondary {
+  background: transparent;
+  border: 1px solid var(--color-border-strong);
+  color: var(--color-accent);
+}
+
+.ui-button--secondary:hover {
+  background: var(--color-accent-light);
+  border-color: var(--color-accent);
+}
+
+.ui-button--ghost {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  padding: 10px 12px;
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ui-badge--green {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}
+
+.ui-badge--gray {
+  background: var(--color-gray-badge);
+  color: var(--color-text-muted);
+}
+
+.ui-badge--amber {
+  background: var(--color-amber-bg);
+  color: var(--color-amber-text);
+}
+
+.ui-badge--blue {
+  background: var(--color-blue-bg);
+  color: var(--color-blue-text);
+}
+
+.ui-badge--red {
+  background: var(--color-red-bg);
+  color: var(--color-red-text);
+}
+
+.section-eyebrow {
+  margin-bottom: var(--space-2);
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-title {
+  color: var(--color-text-primary);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.section-subtitle {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 14px;
+}
+
+.auth-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-family: var(--font-body);
+}
