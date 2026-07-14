@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import AtlasScoreTool from '../components/AtlasScoreTool.jsx';
 import MonteCarloTool from '../components/MonteCarloTool.jsx';
 import './ToolingPage.css';
 
@@ -14,7 +15,7 @@ const TOOLS = [
     id: 'atlas-score',
     title: 'Atlas Score',
     description:
-      'A score that measures the quality of a company\'s management team.',
+      'A 0-100 composite quality score blending financials, market performance, valuation, analyst sentiment, technicals, and earnings.',
     status: 'LIVE',
   }
 ];
@@ -93,6 +94,10 @@ export default function ToolingPage() {
 
   if (selectedTool === 'monte-carlo') {
     return <MonteCarloTool onBack={() => setSelectedTool(null)} />;
+  }
+
+  if (selectedTool === 'atlas-score') {
+    return <AtlasScoreTool onBack={() => setSelectedTool(null)} />;
   }
 
   return (

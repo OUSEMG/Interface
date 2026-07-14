@@ -17,6 +17,8 @@ def combined_snapshot(force_refresh: bool = False, current_user=Depends(get_curr
         return get_combined_snapshot(force_refresh)
     except FileNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
 

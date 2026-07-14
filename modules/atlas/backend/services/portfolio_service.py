@@ -9,8 +9,10 @@ from openpyxl import load_workbook
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
-LEDGER_PATH = REPO_ROOT / "data" / "OUSEMG_Holdings_Ledger.xlsx"
-WEEKLY_REPORT_PATH = REPO_ROOT / "data" / "Weekly Returns Analytics 06-19-26.pdf"
+DATA_DIR = REPO_ROOT / "data"
+LEDGER_PATH = DATA_DIR / "OUSEMG_Holdings_Ledger.xlsx"
+SHARES_WORKBOOK_PATH = DATA_DIR / "OUSEMG_Shares_05-01-2026.xlsx"
+SHARES_WORKBOOK_PATTERN = "OUSEMG_Shares_*.xlsx"
 
 BENCHMARK_TICKER = "SPY"
 CACHE_TTL = 300
@@ -53,22 +55,42 @@ def _is_yes(value):
     return str(value or "").strip().upper() == "YES"
 
 
-def _normalize_whitespace(value):
-    return re.sub(r"\s+", " ", value or "").strip()
-
-
-def _clean_number(value):
-    text = str(value).replace("$", "").replace(",", "").replace("%", "").strip()
-    if text.startswith("(") and text.endswith(")"):
-        text = f"-{text[1:-1]}"
-    return float(text)
-
-
 def _resolve_yf_ticker(ticker):
     overrides = {
         "B": "GOLD",
     }
     return overrides.get(ticker, ticker.replace("/", "-"))
+
+
+def _resolve_holdings_workbook():
+    """Use the OUSEMG shares workbook as the portfolio source of truth."""
+    if SHARES_WORKBOOK_PATH.exists():
+        return SHARES_WORKBOOK_PATH
+
+    candidates = sorted(
+        DATA_DIR.glob(SHARES_WORKBOOK_PATTERN),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if candidates:
+        return candidates[0]
+
+    if LEDGER_PATH.exists():
+        return LEDGER_PATH
+
+    raise FileNotFoundError(
+        f"Holdings source not found. Expected {SHARES_WORKBOOK_PATH}, "
+        f"a {SHARES_WORKBOOK_PATTERN} file, or {LEDGER_PATH} in {DATA_DIR}."
+    )
+
+
+def _date_from_workbook_name(path):
+    match = re.search(r"(\d{2})-(\d{2})-(\d{4})", path.name)
+    if not match:
+        return None
+
+    month, day, year = match.groups()
+    return date(int(year), int(month), int(day))
 
 
 def _parse_snapshot_date(value):
@@ -93,145 +115,22 @@ def _format_snapshot_date(value):
     return parsed.strftime("%m/%d/%Y")
 
 
-def _extract_pdf_text(path):
-    try:
-        from pypdf import PdfReader
-    except ImportError as error:
-        raise RuntimeError("Install pypdf to read the weekly PDF report: pip install pypdf") from error
-
-    reader = PdfReader(path)
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
-
-
-def _parse_report_holding(line, snapshot_date):
-    tokens = line.split()
-    ticker_index = None
-
-    for index, token in enumerate(tokens[:-1]):
-        if re.fullmatch(r"[A-Z][A-Z0-9./-]{0,5}", token) and tokens[index + 1].endswith("%"):
-            ticker_index = index
-            break
-
-    if ticker_index is None:
-        return None
-
-    name = " ".join(tokens[:ticker_index])
-    ticker = tokens[ticker_index].upper()
-    numbers = re.findall(r"\(?-?\d[\d,]*\.?\d*\)?%?", " ".join(tokens[ticker_index + 1 :]))
-    if len(numbers) < 8:
-        return None
-
-    snapshot_value = _clean_number(numbers[5])
-    shares = int(_clean_number(numbers[7]))
-    snapshot_price = snapshot_value / shares if shares else 0.0
-
-    return {
-        "name": name,
-        "ticker": ticker,
-        "yf_ticker": _resolve_yf_ticker(ticker),
-        "shares": shares,
-        "snapshot_price": snapshot_price,
-        "snapshot_value": snapshot_value,
-        "asset_class": "Unclassified",
-        "snapshot_date": snapshot_date,
-        "is_cash": False,
-    }
-
-
-def _parse_report_cash(line, snapshot_date):
-    numbers = re.findall(r"\(?-?\d[\d,]*\.?\d*\)?", line)
-    if not numbers:
-        return None
-
-    snapshot_value = _clean_number(numbers[1] if len(numbers) > 1 else numbers[0])
-    return {
-        "name": "Cash",
-        "ticker": "CASH",
-        "yf_ticker": "CASH",
-        "shares": None,
-        "snapshot_price": None,
-        "snapshot_value": snapshot_value,
-        "asset_class": "Cash",
-        "snapshot_date": snapshot_date,
-        "is_cash": True,
-    }
-
-
-def _read_weekly_report_holdings(sheet_name):
-    if not WEEKLY_REPORT_PATH.exists():
-        raise FileNotFoundError(
-            f"Holdings source not found. Expected either {LEDGER_PATH} or {WEEKLY_REPORT_PATH}."
-        )
-
-    section_key = "Traditional" if sheet_name == "Traditional" else "Sustainable"
-    text = _extract_pdf_text(WEEKLY_REPORT_PATH)
-    lines = [_normalize_whitespace(line) for line in text.splitlines()]
-    lines = [line for line in lines if line]
-
-    section_start = next(
-        (index for index, line in enumerate(lines) if f"OUSEMG {section_key} Weekly Return" in line),
-        None,
-    )
-    if section_start is None:
-        raise ValueError(f"Could not find {section_key} section in {WEEKLY_REPORT_PATH.name}")
-
-    header_index = next(
-        (
-            index
-            for index in range(section_start, len(lines))
-            if lines[index].startswith("Security Ticker")
-        ),
-        None,
-    )
-    if header_index is None:
-        raise ValueError(f"Could not find holdings table in {section_key} section")
-
-    snapshot_date = next(
-        (
-            re.search(r"\d{2}/\d{2}/\d{4}", lines[index]).group(0)
-            for index in range(section_start, header_index)
-            if re.search(r"\d{2}/\d{2}/\d{4}", lines[index])
-        ),
-        "06/19/2026",
-    )
-
-    holdings = []
-    for line in lines[header_index + 1 :]:
-        if line.startswith("Cash"):
-            cash = _parse_report_cash(line, snapshot_date)
-            if cash:
-                holdings.append(cash)
-            break
-
-        holding = _parse_report_holding(line, snapshot_date)
-        if holding:
-            holdings.append(holding)
-
-    if not holdings:
-        raise ValueError(f"No holdings were parsed from {section_key} section")
-
-    return holdings
-
-
 def read_holdings(sheet_name):
-    if not LEDGER_PATH.exists():
-        return _read_weekly_report_holdings(sheet_name)
-
-    wb = load_workbook(LEDGER_PATH, data_only=True, read_only=True)
+    workbook_path = _resolve_holdings_workbook()
+    workbook_snapshot_date = _date_from_workbook_name(workbook_path)
+    wb = load_workbook(workbook_path, data_only=True, read_only=True)
     if sheet_name not in wb.sheetnames:
         raise ValueError(f"Workbook sheet '{sheet_name}' was not found")
 
     ws = wb[sheet_name]
     holdings = []
 
-    for row in ws.iter_rows(min_row=4, values_only=True):
+    for row in ws.iter_rows(min_row=2, values_only=True):
         ticker = str(row[1] or "").strip().upper()
         if not ticker:
             break
 
         if ticker == "CASH":
-            # SWAP POINT: When weekly Excel ingestion is implemented, cash balance
-            # should be read from the most recent uploaded snapshot rather than the static ledger.
             holdings.append(
                 {
                     "name": row[0] or "Cash",
@@ -239,32 +138,28 @@ def read_holdings(sheet_name):
                     "yf_ticker": "CASH",
                     "shares": None,
                     "snapshot_price": None,
-                    "snapshot_value": _to_float(row[4]),
-                    "asset_class": row[5] or "Cash",
-                    "snapshot_date": row[9],
+                    "snapshot_value": _to_float(row[2]),
+                    "asset_class": "Cash",
+                    "snapshot_date": workbook_snapshot_date,
                     "is_cash": True,
                 }
             )
-            break
-
-        if not _is_yes(row[8]):
             continue
 
-        yf_ticker = str(row[7] or row[1]).strip().upper()
         shares = _to_int(row[2])
-        snapshot_price = _to_float(row[3])
-        snapshot_value = _to_float(row[4], snapshot_price * shares if shares else 0.0)
+        if not shares:
+            continue
 
         holdings.append(
             {
                 "name": row[0],
                 "ticker": ticker,
-                "yf_ticker": yf_ticker,
+                "yf_ticker": _resolve_yf_ticker(ticker),
                 "shares": shares,
-                "snapshot_price": snapshot_price,
-                "snapshot_value": snapshot_value,
-                "asset_class": row[5],
-                "snapshot_date": row[9],
+                "snapshot_price": None,
+                "snapshot_value": 0.0,
+                "asset_class": "Equity",
+                "snapshot_date": workbook_snapshot_date,
                 "is_cash": False,
             }
         )
@@ -319,16 +214,28 @@ def _last_price(close, ticker):
     return float(series.iloc[-1])
 
 
+def _previous_price(close, ticker):
+    if ticker not in close:
+        return None
+
+    series = close[ticker].dropna()
+    if len(series) < 2:
+        return None
+
+    return float(series.iloc[-2])
+
+
 def fetch_prices(yf_tickers, snapshot_date):
     # SWAP POINT: Replace this function with BLPAPI equivalent when terminal bridge is ready.
-    # BLPAPI call should return the same dict shape: {yf_ticker: {"current": float, "ytd": float, "snapshot": float}}.
+    # BLPAPI call should return the same dict shape:
+    # {yf_ticker: {"current": float, "previous": float, "ytd": float, "snapshot": float}}.
     tickers = list(dict.fromkeys([ticker for ticker in yf_tickers if ticker and ticker != "CASH"]))
     all_tickers = list(dict.fromkeys(tickers + [BENCHMARK_TICKER]))
     if not all_tickers:
         return {}
 
     today = datetime.now(UTC).date()
-    start_date = min(date(today.year, 1, 1), snapshot_date) - timedelta(days=7)
+    start_date = min(date(today.year, 1, 1), snapshot_date) - timedelta(days=10)
     end_date = today + timedelta(days=1)
 
     raw = yf.download(
@@ -344,6 +251,7 @@ def fetch_prices(yf_tickers, snapshot_date):
     for ticker in all_tickers:
         prices[ticker] = {
             "current": _last_price(close, ticker),
+            "previous": _previous_price(close, ticker),
             "ytd": _first_price(
                 close[close.index.date >= date(today.year, 1, 1)],
                 ticker,
@@ -366,7 +274,12 @@ def _position_from_holding(holding, price_data):
         return {
             **holding,
             "current_price": None,
+            "previous_price": None,
             "current_value": current_value,
+            "market_value": current_value,
+            "day_change": 0.0,
+            "day_change_percent": 0.0,
+            "day_gain_loss": 0.0,
             "gain_loss": 0.0,
             "return_since_snapshot": 0.0,
             "ytd_return": 0.0,
@@ -377,24 +290,41 @@ def _position_from_holding(holding, price_data):
 
     prices = price_data.get(holding["yf_ticker"], {})
     current_price = prices.get("current")
+    previous_price = prices.get("previous")
     ytd_price = prices.get("ytd")
+    snapshot_price = prices.get("snapshot")
     price_stale = current_price is None
 
     if price_stale:
-        current_price = holding["snapshot_price"]
-        current_value = holding["snapshot_value"]
+        current_price = snapshot_price
+        current_value = current_price * holding["shares"] if current_price else 0.0
     else:
         current_value = current_price * holding["shares"]
 
-    gain_loss = current_value - holding["snapshot_value"]
-    ytd_basis = ytd_price * holding["shares"] if ytd_price else holding["snapshot_value"]
+    snapshot_value = snapshot_price * holding["shares"] if snapshot_price else 0.0
+    day_change = (
+        current_price - previous_price
+        if current_price is not None and previous_price is not None
+        else None
+    )
+    day_change_percent = _safe_return(current_price, previous_price)
+    day_gain_loss = day_change * holding["shares"] if day_change is not None else None
+    gain_loss = current_value - snapshot_value if snapshot_value else None
+    ytd_basis = ytd_price * holding["shares"] if ytd_price else snapshot_value
 
     return {
         **holding,
+        "snapshot_price": snapshot_price,
+        "snapshot_value": snapshot_value,
         "current_price": current_price,
+        "previous_price": previous_price,
         "current_value": current_value,
+        "market_value": current_value,
+        "day_change": day_change,
+        "day_change_percent": day_change_percent,
+        "day_gain_loss": day_gain_loss,
         "gain_loss": gain_loss,
-        "return_since_snapshot": _safe_return(current_value, holding["snapshot_value"]),
+        "return_since_snapshot": _safe_return(current_value, snapshot_value),
         "ytd_return": _safe_return(current_value, ytd_basis),
         "weight": 0.0,
         "price_stale": price_stale,

@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from analytics import run_analysis
+from atlas_score import run_atlas_score
 from middleware.auth_middleware import get_current_user
 from monte_carlo import run_monte_carlo
 from routers import auth, portfolio
@@ -10,7 +11,12 @@ app = FastAPI(title="Atlas API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -27,6 +33,19 @@ def portfolio_research(period: str = "1Y", current_user=Depends(get_current_user
 
     try:
         return run_analysis(period)
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+
+@app.get("/api/atlas-score/{ticker}")
+def atlas_score(ticker: str, current_user=Depends(get_current_user)):
+    if not ticker.strip():
+        raise HTTPException(status_code=400, detail="Ticker is required")
+
+    try:
+        return run_atlas_score(ticker.strip().upper())
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
 

@@ -42,8 +42,6 @@ modules/login/docs/loginSystem.md
 **/data/*.json
 !**/data/*.example.json
 **/data/*.csv
-**/data/*.xlsx
-**/data/*.xls
 **/data/*.db
 **/data/*.sqlite
 **/data/*.sqlite3

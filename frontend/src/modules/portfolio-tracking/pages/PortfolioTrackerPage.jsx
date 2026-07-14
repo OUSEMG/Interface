@@ -5,12 +5,21 @@ import './PortfolioTrackerPage.css';
 const NUMERIC_COLUMNS = [
   { key: 'shares', label: 'Shares' },
   { key: 'current_price', label: 'Current Price' },
-  { key: 'current_value', label: 'Current Value' },
-  { key: 'snapshot_value', label: 'Snapshot Value' },
+  { key: 'day_change', label: 'Day Change' },
+  { key: 'day_gain_loss', label: 'Day P/L' },
+  { key: 'market_value', label: 'Market Value' },
   { key: 'gain_loss', label: 'Gain / Loss' },
   { key: 'return_since_snapshot', label: 'Return Since' },
-  { key: 'ytd_return', label: 'YTD Return' },
   { key: 'weight', label: 'Weight' },
+];
+
+const SORT_OPTIONS = [
+  { label: 'Alphabetical', key: 'name', direction: 'asc' },
+  { label: 'Today Performance', key: 'day_change_percent', direction: 'desc' },
+  { label: 'Today Worst', key: 'day_change_percent', direction: 'asc' },
+  { label: 'Total Performance', key: 'return_since_snapshot', direction: 'desc' },
+  { label: 'Total Worst', key: 'return_since_snapshot', direction: 'asc' },
+  { label: 'Largest Position', key: 'weight', direction: 'desc' },
 ];
 
 function formatCurrency(value, { cents = false } = {}) {
@@ -53,6 +62,11 @@ function valueTone(value) {
   return '';
 }
 
+function accountLabel(value) {
+  if (!value) return '—';
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function SkeletonTable() {
   return (
     <div className="pt-skeleton" aria-label="Loading portfolio data">
@@ -87,6 +101,13 @@ export default function PortfolioTrackerPage() {
   const activeData = dataByPortfolio[selectedPortfolio];
   const summary = activeData?.summary;
   const holdings = activeData?.holdings || [];
+  const totalDayGainLoss = holdings.reduce(
+    (total, holding) => total + (holding.day_gain_loss || 0),
+    0
+  );
+  const totalDayReturn = summary?.total_aum
+    ? totalDayGainLoss / (summary.total_aum - totalDayGainLoss)
+    : null;
 
   async function loadSnapshot(portfolio = selectedPortfolio, options = {}) {
     setLoading(true);
@@ -130,14 +151,38 @@ export default function PortfolioTrackerPage() {
     });
   }
 
+  function handlePresetSort(event) {
+    const option = SORT_OPTIONS.find((item) => item.label === event.target.value);
+    if (!option) return;
+    setSort({ key: option.key, direction: option.direction });
+  }
+
   const sortedHoldings = useMemo(() => {
     return [...holdings].sort((left, right) => {
-      const leftValue = left[sort.key] ?? Number.NEGATIVE_INFINITY;
-      const rightValue = right[sort.key] ?? Number.NEGATIVE_INFINITY;
       const multiplier = sort.direction === 'asc' ? 1 : -1;
+
+      if (sort.key === 'name' || sort.key === 'ticker') {
+        const leftValue = String(left[sort.key] || '').toLowerCase();
+        const rightValue = String(right[sort.key] || '').toLowerCase();
+        return leftValue.localeCompare(rightValue) * multiplier;
+      }
+
+      const leftValue = left[sort.key];
+      const rightValue = right[sort.key];
+      const leftMissing = leftValue === null || leftValue === undefined || Number.isNaN(leftValue);
+      const rightMissing = rightValue === null || rightValue === undefined || Number.isNaN(rightValue);
+
+      if (leftMissing && rightMissing) return 0;
+      if (leftMissing) return 1;
+      if (rightMissing) return -1;
       return (leftValue - rightValue) * multiplier;
     });
   }, [holdings, sort]);
+
+  const selectedSortLabel =
+    SORT_OPTIONS.find(
+      (option) => option.key === sort.key && option.direction === sort.direction
+    )?.label || 'Custom';
 
   const snapshotLabel = activeData?.snapshot_date || '6/19';
   const lastRefreshLabel = formatRefreshTime(activeData?.fetched_at);
@@ -148,9 +193,9 @@ export default function PortfolioTrackerPage() {
       <section className="pt-hero">
         <div>
           <p className="pt-eyebrow">Portfolio Tracking</p>
-          <h1>Live Portfolio Performance</h1>
+          <h1>Holdings</h1>
           <p className="pt-hero__copy">
-            Manual yfinance refreshes against the static holdings ledger in the repo-root data folder.
+            Brokerage-style view of OUSEMG positions from the Excel share file in the repo-root data folder.
           </p>
         </div>
 
@@ -188,26 +233,26 @@ export default function PortfolioTrackerPage() {
 
       <section className="pt-summary" aria-label="Portfolio summary">
         <MetricCard
-          label="Total AUM"
+          label="Market Value"
           value={formatCurrency(summary?.total_aum)}
           subLabel={selectedPortfolio === 'combined' ? 'Combined' : activeData?.portfolio}
         />
         <MetricCard
+          label="Day P/L"
+          value={formatCurrency(totalDayGainLoss)}
+          subLabel={formatPercent(totalDayReturn)}
+          tone={valueTone(totalDayGainLoss)}
+        />
+        <MetricCard
           label={`Return Since ${snapshotLabel}`}
           value={formatPercent(summary?.return_since_snapshot)}
-          subLabel={`vs SPY: ${formatPercent(summary?.benchmark_return_since_snapshot)}`}
+          subLabel={`Gain/loss: ${formatCurrency(summary?.total_gain_loss)}`}
           tone={valueTone(summary?.return_since_snapshot)}
         />
         <MetricCard
-          label="YTD Return"
-          value={formatPercent(summary?.ytd_return)}
-          subLabel={`vs SPY: ${formatPercent(summary?.benchmark_ytd_return)}`}
-          tone={valueTone(summary?.ytd_return)}
-        />
-        <MetricCard
-          label="Last Refreshed"
-          value={lastRefreshLabel}
-          subLabel={sourceLabel}
+          label="Positions"
+          value={holdings.length ? String(holdings.length) : '—'}
+          subLabel={`${sourceLabel} prices · ${lastRefreshLabel}`}
         />
       </section>
 
@@ -215,8 +260,21 @@ export default function PortfolioTrackerPage() {
         <div className="pt-table-card__header">
           <div>
             <h2>Holdings</h2>
-            <p>Default sorted by portfolio weight. Click numeric headers to sort.</p>
+            <p>Use a preset sort or click numeric headers to sort directly.</p>
           </div>
+          <label className="pt-sort-select">
+            <span>Sort by</span>
+            <select value={selectedSortLabel} onChange={handlePresetSort}>
+              {selectedSortLabel === 'Custom' ? (
+                <option value="Custom">Custom</option>
+              ) : null}
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.label} value={option.label}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {loading && !activeData ? (
@@ -228,6 +286,7 @@ export default function PortfolioTrackerPage() {
                 <tr>
                   <th scope="col">Security</th>
                   <th scope="col">Ticker</th>
+                  {selectedPortfolio === 'combined' ? <th scope="col">Account</th> : null}
                   {NUMERIC_COLUMNS.map((column) => (
                     <th scope="col" key={column.key}>
                       <button
@@ -242,7 +301,6 @@ export default function PortfolioTrackerPage() {
                       </button>
                     </th>
                   ))}
-                  <th scope="col">Asset Class</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,6 +313,9 @@ export default function PortfolioTrackerPage() {
                       ) : null}
                     </td>
                     <td className="pt-ticker">{holding.ticker}</td>
+                    {selectedPortfolio === 'combined' ? (
+                      <td className="pt-account">{accountLabel(holding.portfolio)}</td>
+                    ) : null}
                     <td>{formatShares(holding.shares)}</td>
                     <td>
                       {formatPrice(holding.current_price)}
@@ -268,17 +329,23 @@ export default function PortfolioTrackerPage() {
                         </span>
                       ) : null}
                     </td>
-                    <td>{formatCurrency(holding.current_value)}</td>
-                    <td>{formatCurrency(holding.snapshot_value)}</td>
-                    <td>{formatCurrency(holding.gain_loss)}</td>
+                    <td className={valueTone(holding.day_change)}>
+                      {formatPrice(holding.day_change)}
+                      <span className="pt-cell-sub">
+                        {formatPercent(holding.day_change_percent)}
+                      </span>
+                    </td>
+                    <td className={valueTone(holding.day_gain_loss)}>
+                      {formatCurrency(holding.day_gain_loss)}
+                    </td>
+                    <td>{formatCurrency(holding.market_value)}</td>
+                    <td className={valueTone(holding.gain_loss)}>
+                      {formatCurrency(holding.gain_loss)}
+                    </td>
                     <td className={valueTone(holding.return_since_snapshot)}>
                       {formatPercent(holding.return_since_snapshot)}
                     </td>
-                    <td className={valueTone(holding.ytd_return)}>
-                      {formatPercent(holding.ytd_return)}
-                    </td>
                     <td>{formatPercent(holding.weight, { signed: false })}</td>
-                    <td>{holding.asset_class || '—'}</td>
                   </tr>
                 ))}
               </tbody>
